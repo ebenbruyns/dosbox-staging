@@ -1378,10 +1378,8 @@ public:
 	~SERIALPORTS()
 	{
 		for (uint8_t i = 0; i < SERIAL_MAX_PORTS; ++i) {
-			if (serialports[i]) {
-				delete serialports[i];
-				serialports[i] = 0;
-			}
+			delete serialports[i];
+			serialports[i] = nullptr;
 		}
 #if C_MODEM
 		MODEM_ClearPhonebook();
@@ -1395,7 +1393,7 @@ void SERIAL_Destroy(Section *sec)
 {
 	(void)sec; // unused, but required for API compliance
 	delete testSerialPortsBaseclass;
-	testSerialPortsBaseclass = NULL;
+	testSerialPortsBaseclass = nullptr;
 }
 
 void SERIAL_Init (Section* sec)
