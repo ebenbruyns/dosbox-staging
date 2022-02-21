@@ -68,7 +68,8 @@ test(
 unit_tests = [
     {'name': 'ansi_code_markup', 'deps': [libmisc_stubs_dep]},
     {'name': 'bit_view', 'deps': []},
-    {'name': 'bitops', 'deps': []},
+    {'name' : 'fifo',                 'deps' : []},
+  {'name': 'bitops', 'deps': []},
     {'name': 'dos_files', 'deps': [dosbox_dep], 'extra_cpp': []},
     {'name': 'drives', 'deps': [dosbox_dep], 'extra_cpp': []},
     {'name': 'int10_modes', 'deps': [dosbox_dep], 'extra_cpp': []},
