@@ -60,8 +60,8 @@ bool GFX_Events();
 // Useful during output initialization or transitions.
 void GFX_DisengageRendering();
 
-Bitu GFX_GetBestMode(Bitu flags);
-Bitu GFX_GetRGB(uint8_t red,uint8_t green,uint8_t blue);
+uint8_t GFX_GetBestMode(uint8_t flags);
+uint32_t GFX_GetRGB(uint8_t red, uint8_t green, uint8_t blue);
 void GFX_SetShader(const std::string &source);
 void GFX_SetIntegerScalingMode(const std::string& new_mode);
 IntegerScalingMode GFX_GetIntegerScalingMode();
@@ -70,9 +70,9 @@ InterpolationMode GFX_GetInterpolationMode();
 struct VideoMode;
 class Fraction;
 
-Bitu GFX_SetSize(const int width, const int height,
-                 const Fraction& render_pixel_aspect_ratio, const Bitu flags,
-                 const VideoMode& video_mode, GFX_CallBack_t callback);
+uint8_t GFX_SetSize(const int width, const int height,
+                    const Fraction& render_pixel_aspect_ratio, const uint8_t flags,
+                    const VideoMode& video_mode, GFX_CallBack_t callback);
 
 void GFX_ResetScreen(void);
 void GFX_RequestExit(const bool requested);
