@@ -26,6 +26,7 @@
 #include "program_autotype.h"
 #include "program_boot.h"
 #include "program_choice.h"
+#include "program_edit.h"
 #include "program_help.h"
 #include "program_imgmount.h"
 #include "program_intro.h"
@@ -44,6 +45,8 @@
 #include "program_setver.h"
 #include "program_subst.h"
 #include "program_tree.h"
+
+#include "tui/tui_texteditor.h"
 
 #if C_DEBUG
 #include "program_biostest.h"
@@ -76,6 +79,7 @@ void Add_VFiles(const bool add_autoexec)
 #endif
 	PROGRAMS_MakeFile("BOOT.COM", ProgramCreate<BOOT>);
 	PROGRAMS_MakeFile("CHOICE.COM", ProgramCreate<CHOICE>);
+	PROGRAMS_MakeFile("EDIT.COM", ProgramCreate<EDIT>);
 	REELMAGIC_MaybeCreateFmpdrvExecutable();
 	PROGRAMS_MakeFile("HELP.COM", ProgramCreate<HELP>);
 	PROGRAMS_MakeFile("IMGMOUNT.COM", ProgramCreate<IMGMOUNT>);
@@ -105,9 +109,12 @@ void Add_VFiles(const bool add_autoexec)
 
 void DOS_SetupPrograms(void)
 {
-	/*Add misc messages */
+	// Add misc messages
 	MSG_Add("WIKI_ADD_UTILITIES_ARTICLE", WIKI_ADD_UTILITIES_ARTICLE);
 	MSG_Add("WIKI_URL", WIKI_URL);
+
+	// Add text UI strings
+	TuiTextEditor::AddMessages();
 
 	const auto add_autoexec = false;
 	Add_VFiles(add_autoexec);
