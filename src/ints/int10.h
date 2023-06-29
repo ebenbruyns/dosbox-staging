@@ -50,6 +50,8 @@
 #define BIOSMEM_CRTCPU_PAGE   0x8A
 #define BIOSMEM_VS_POINTER    0xA8
 
+constexpr uint16_t MinVesaMode = 0x100;
+constexpr uint16_t MaxVesaMode = 0x7ff;
 
 /*
  *
@@ -246,6 +248,7 @@ void INT10_PerformGrayScaleSumming(uint16_t start_reg,uint16_t count);
 
 
 /* Vesa Group */
+bool VESA_IsVesaMode(const uint16_t mode);
 uint8_t VESA_GetSVGAInformation(uint16_t seg,uint16_t off);
 uint8_t VESA_GetSVGAModeInformation(uint16_t mode,uint16_t seg,uint16_t off);
 uint8_t VESA_SetSVGAMode(uint16_t mode);

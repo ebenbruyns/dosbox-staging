@@ -91,7 +91,14 @@ struct MODE_INFO{
 #pragma pack()
 #endif
 
-
+// Ref: https://android.googlesource.com/kernel/msm/+/android-msm-bullhead-3.10-marshmallow-dr/Documentation/svga.txt
+//
+// "2.7 (09-Apr-96) Accepted all VESA modes in range 0x100 to 0x7ff, because some
+// cards use very strange mode numbers.'
+bool VESA_IsVesaMode(const uint16_t mode)
+{
+	return (mode >= MinVesaMode && mode <= MaxVesaMode);
+}
 
 uint8_t VESA_GetSVGAInformation(uint16_t seg,uint16_t off) {
 	/* Fill 256 byte buffer with VESA information */
@@ -157,7 +164,9 @@ uint8_t VESA_GetSVGAModeInformation(uint16_t mode,uint16_t seg,uint16_t off) {
 	uint8_t modeAttributes;
 
 	mode&=0x3fff;	// vbe2 compatible, ignore lfb and keep screen content bits
-	if (mode<0x100) return 0x01;
+	if (mode < MinVesaMode) {
+		return 0x01;
+	}
 	if (svga.accepts_mode) {
 		if (!svga.accepts_mode(mode)) return 0x01;
 	}
@@ -653,7 +662,7 @@ void INT10_SetupVESA(void) {
 		else {
 			if (svga.accepts_mode(ModeList_VGA[i].mode)) canuse_mode=true;
 		}
-		if (ModeList_VGA[i].mode>=0x100 && canuse_mode) {
+		if (ModeList_VGA[i].mode >= MinVesaMode && canuse_mode) {
 			if (!int10.vesa_oldvbe || ModeList_VGA[i].mode < 0x120) {
 				phys_writew(PhysicalMake(0xc000, int10.rom.used), ModeList_VGA[i].mode);
 				int10.rom.used += 2;
