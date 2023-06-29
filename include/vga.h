@@ -127,7 +127,7 @@ constexpr auto REFRESH_RATE_MIN = 23;
 constexpr auto REFRESH_RATE_HOST_VRR_LFC = 48;
 constexpr auto REFRESH_RATE_HOST_DEFAULT = 60;
 constexpr auto REFRESH_RATE_DOS_DEFAULT = 70;
-constexpr auto REFRESH_RATE_HOST_VRR_MIN = 75;
+constexpr auto InterpolatingVrrMinRateHz = 140;
 constexpr auto REFRESH_RATE_MAX = 1000;
 
 // 4x the NTSC color-burst frequency of 3.579545 MHz
