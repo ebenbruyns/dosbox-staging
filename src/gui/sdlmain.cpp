@@ -1716,18 +1716,22 @@ static void check_kmsdrm_setting()
 // screens) and also reduces load on slow systems like the Raspberry Pi.
 //
 static void update_vga_double_scan_handling([[maybe_unused]] const SCREEN_TYPES screen_type,
-                                            const SCALING_MODE scaling_mode)
+                                            const SCALING_MODE scaling_mode,
+                                            const bool force_vga_single_scan)
 {
-	auto line_handling = VgaDoubleScanHandling::SingleScan;
+	auto enable_vga_double_scan = false;
+
+	if (!force_vga_single_scan) {
 #if C_OPENGL
-	if (screen_type == SCREEN_OPENGL && get_glshader_value() != "none") {
-		line_handling = VgaDoubleScanHandling::DoubleScan;
-	}
+		if (screen_type == SCREEN_OPENGL && get_glshader_value() != "none") {
+			enable_vga_double_scan = true;
+		}
 #endif
-	if (scaling_mode == SCALING_MODE::NONE) {
-		line_handling = VgaDoubleScanHandling::DoubleScan;
+		if (scaling_mode == SCALING_MODE::NONE) {
+			enable_vga_double_scan = true;
+		}
 	}
-	VGA_SetVgaDoubleScanHandling(line_handling);
+	VGA_EnableVgaDoubleScanning(enable_vga_double_scan);
 }
 
 bool operator!=(const SDL_Point lhs, const SDL_Point rhs)
@@ -2292,7 +2296,10 @@ dosurface:
 	// Ensure mouse emulation knows the current parameters
 	NewMouseScreenParams();
 	update_vsync_state();
-	update_vga_double_scan_handling(sdl.desktop.type, sdl.scaling_mode);
+
+	update_vga_double_scan_handling(sdl.desktop.type,
+	                                sdl.scaling_mode,
+	                                RENDER_IsVgaSingleScanningForced());
 
 	if (sdl.draw.has_changed) {
 		log_display_properties(sdl.draw.width,
