@@ -714,7 +714,8 @@ static SDL_Rect get_canvas_size(const SCREEN_TYPES screen_type);
 static void log_display_properties(const int width, const int height,
                                    const VideoMode& video_mode,
                                    const std::optional<SDL_Rect>& viewport_size_override,
-                                   const SCREEN_TYPES screen_type)
+                                   const SCREEN_TYPES screen_type,
+                                   const bool should_stretch_pixels)
 {
 	// Get the viewport dimensions, with consideration for possible override
 	// values
@@ -740,11 +741,12 @@ static void log_display_properties(const int width, const int height,
 
 	[[maybe_unused]] const auto one_per_render_pixel_aspect = scale_y / scale_x;
 
-	const auto [mode_type, mode_id] = VGA_GetCurrentMode();
-	const auto [mode_desc, colours_desc] = VGA_DescribeMode(mode_type,
-			mode_id, video_mode.width, video_mode.height);
+	const auto [mode_block, mode_type] = VGA_GetCurrentMode();
 
-	const char *frame_mode = nullptr;
+	const auto [mode_type_desc, colours_desc, is_custom_mode] = VGA_DescribeMode(
+	        machine, mode_block, mode_type, video_mode.width, video_mode.height);
+
+	const char* frame_mode = nullptr;
 	switch (sdl.frame.mode) {
 	case FRAME_MODE::CFR: frame_mode = "CFR"; break;
 	case FRAME_MODE::VFR: frame_mode = "VFR"; break;
@@ -755,29 +757,43 @@ static void log_display_properties(const int width, const int height,
 
 	const auto refresh_rate = VGA_GetPreferredRate();
 
+	const auto mode_desc = is_custom_mode ? ""
+	                                      : format_string(" (mode %02Xh)",
+	                                                      mode_block.mode);
+
 	// Double check all the char* string variables
-	assert(mode_desc);
+	assert(mode_type_desc);
 	assert(colours_desc);
 	assert(frame_mode);
 
-	LOG_MSG("DISPLAY: %s %dx%d %s (mode %02Xh) at %2.5g Hz %s, scaled"
-	        " to %dx%d with 1:%1.3g pixel aspect ratio",
-	        mode_desc,
+	constexpr auto square_pixel_aspect_ratio = Fraction{1};
+
+	const auto pixel_aspect_ratio = (should_stretch_pixels
+	                                         ? video_mode.pixel_aspect_ratio
+	                                         : square_pixel_aspect_ratio);
+
+	LOG_MSG("DISPLAY: %s %dx%d %s%s at %2.5g Hz %s, "
+	        "scaled to %dx%d with 1:%1.6g (%d:%d) pixel aspect ratio",
+	        mode_type_desc,
 	        video_mode.width,
 	        video_mode.height,
 	        colours_desc,
-	        mode_id,
+	        mode_desc.c_str(),
 	        refresh_rate,
 	        frame_mode,
 	        viewport_w,
 	        viewport_h,
-	        video_mode.pixel_aspect_ratio.Inverse().ToFloat());
+	        pixel_aspect_ratio.Inverse().ToDouble(),
+	        static_cast<int32_t>(pixel_aspect_ratio.Num()),
+	        static_cast<int32_t>(pixel_aspect_ratio.Denom()));
 
-	//LOG_MSG("DISPLAY: render width: %d, render height: %d, "
-	//        "render pixel aspect ratio: 1:%1.3g",
-	//        width,
-	//        height,
-	//        one_per_render_pixel_aspect);
+#if 0
+	LOG_MSG("DISPLAY: render width: %d, render height: %d, "
+	        "render pixel aspect ratio: 1:%1.3g",
+	        width,
+	        height,
+	        one_per_render_pixel_aspect);
+#endif
 }
 
 static SDL_Point get_initial_window_position_or_default(int default_val)
@@ -1157,7 +1173,8 @@ static void setup_presentation_mode(FRAME_MODE &previous_mode)
 	auto mode = FRAME_MODE::UNSET;
 
 	// Text modes always get VFR
-	const bool in_text_mode = CurMode->type & M_TEXT_MODES;
+	const auto [_, mode_type] = VGA_GetCurrentMode();
+	const bool in_text_mode = mode_type & M_TEXT_MODES;
 	if (in_text_mode) {
 		mode = FRAME_MODE::VFR;
 		save_rate_to_frame_period(dos_rate);
@@ -1751,6 +1768,7 @@ Bitu GFX_SetSize(const int width, const int height, const Bitu flags,
 
 	const bool double_width = flags & GFX_DBL_W;
 	const bool double_height = flags & GFX_DBL_H;
+	const auto [_, mode_type] = VGA_GetCurrentMode();
 
 	sdl.draw.has_changed = (sdl.draw.width != width ||
 	                        sdl.draw.height != height ||
@@ -1758,7 +1776,7 @@ Bitu GFX_SetSize(const int width, const int height, const Bitu flags,
 	                        sdl.draw.height_was_doubled != double_height ||
 	                        sdl.draw.scalex != scalex ||
 	                        sdl.draw.scaley != scaley ||
-	                        sdl.draw.previous_mode != CurMode->type);
+	                        sdl.draw.previous_mode != mode_type);
 
 	sdl.draw.width              = width;
 	sdl.draw.height             = height;
@@ -1770,7 +1788,7 @@ Bitu GFX_SetSize(const int width, const int height, const Bitu flags,
 	sdl.video_mode = video_mode;
 
 	sdl.draw.callback      = callback;
-	sdl.draw.previous_mode = CurMode->type;
+	sdl.draw.previous_mode = mode_type;
 
 	const auto wants_vsync = get_vsync_preference().requested != VSYNC_STATE::OFF;
 
@@ -2281,7 +2299,8 @@ dosurface:
 		                       sdl.draw.height,
 		                       sdl.video_mode,
 		                       {},
-		                       sdl.desktop.type);
+		                       sdl.desktop.type,
+		                       wants_stretched_pixels());
 	}
 
 	if (retFlags) {
@@ -2479,7 +2498,8 @@ void GFX_SwitchFullScreen()
 	                       sdl.draw.height,
 	                       sdl.video_mode,
 	                       canvas_size,
-	                       sdl.desktop.type);
+	                       sdl.desktop.type,
+	                       wants_stretched_pixels());
 
 	sdl.desktop.switching_fullscreen = false;
 }
