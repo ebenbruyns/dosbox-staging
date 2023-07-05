@@ -1717,10 +1717,10 @@ static void check_kmsdrm_setting()
 //
 static void update_vga_double_scan_handling([[maybe_unused]] const SCREEN_TYPES screen_type,
                                             const SCALING_MODE scaling_mode,
-                                            const bool force_vga_single_scan)
+                                            const bool force_vga_single_scan,
+                                            const bool force_no_pixel_doubling)
 {
 	auto enable_vga_double_scan = false;
-
 	if (!force_vga_single_scan) {
 #if C_OPENGL
 		if (screen_type == SCREEN_OPENGL && get_glshader_value() != "none") {
@@ -1732,6 +1732,19 @@ static void update_vga_double_scan_handling([[maybe_unused]] const SCREEN_TYPES 
 		}
 	}
 	VGA_EnableVgaDoubleScanning(enable_vga_double_scan);
+
+	auto enable_pixel_doubling = false;
+	if (!force_no_pixel_doubling) {
+#if C_OPENGL
+		if (screen_type == SCREEN_OPENGL && get_glshader_value() != "none") {
+			enable_pixel_doubling = true;
+		}
+#endif
+		if (scaling_mode == SCALING_MODE::NONE) {
+			enable_pixel_doubling = true;
+		}
+	}
+	VGA_EnablePixelDoubling(enable_pixel_doubling);
 }
 
 bool operator!=(const SDL_Point lhs, const SDL_Point rhs)
@@ -2299,7 +2312,8 @@ dosurface:
 
 	update_vga_double_scan_handling(sdl.desktop.type,
 	                                sdl.scaling_mode,
-	                                RENDER_IsVgaSingleScanningForced());
+	                                RENDER_IsVgaSingleScanningForced(),
+									RENDER_IsNoPixelDoublingForced());
 
 	if (sdl.draw.has_changed) {
 		log_display_properties(sdl.draw.width,
