@@ -6884,7 +6884,7 @@ static void Voodoo_UpdateScreen(void) {
 
 			constexpr Fraction render_pixel_aspect_ratio = {1};
 
-			constexpr auto bits_per_pixel = 16;
+			constexpr uint8_t bits_per_pixel = 16;
 			const auto frames_per_second  = 1000.0f / v->draw.vfreq;
 
 			const VideoMode video_mode = {check_cast<uint16_t>(width),

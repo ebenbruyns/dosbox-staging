@@ -200,7 +200,7 @@ static bool _vgaDoubleHeight = false;
 static VideoMode _videoMode = {};
 
 // != 0 on this variable means we have collected the first call
-static uint32_t _vgaBitsPerPixel = 0;
+static uint8_t _vgaBitsPerPixel = 0;
 
 static double _vgaFramesPerSecond    = 0.0;
 static Fraction _vgaRenderPixelAspectRatio = {};
@@ -711,7 +711,7 @@ void ReelMagic_RENDER_SetPal(uint8_t entry, uint8_t red, uint8_t green, uint8_t 
 void ReelMagic_RENDER_SetSize(const uint16_t width, const uint16_t height,
                               const bool double_width, const bool double_height,
                               const Fraction& render_pixel_aspect_ratio,
-                              const uint16_t bits_per_pixel,
+                              const uint8_t bits_per_pixel,
                               const double frames_per_second,
                               const VideoMode& video_mode)
 {
