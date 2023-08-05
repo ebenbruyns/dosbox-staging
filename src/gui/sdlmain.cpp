@@ -72,6 +72,8 @@
 #include "vga.h"
 #include "video.h"
 
+using namespace std::chrono;
+
 #if C_OPENGL
 //Define to report opengl errors
 //#define DB_OPENGL_ERROR
@@ -2033,6 +2035,8 @@ dosurface:
 
 				// does program need to be rebuilt?
 				if (sdl.opengl.program_object == 0) {
+					const auto start = high_resolution_clock::now();
+
 					GLuint vertexShader, fragmentShader;
 
 					if (!LoadGLShaders(sdl.opengl.shader_source_sv,
@@ -2097,6 +2101,10 @@ dosurface:
 					sdl.opengl.ruby.input_size = glGetUniformLocation(sdl.opengl.program_object, "rubyInputSize");
 					sdl.opengl.ruby.output_size = glGetUniformLocation(sdl.opengl.program_object, "rubyOutputSize");
 					sdl.opengl.ruby.frame_count = glGetUniformLocation(sdl.opengl.program_object, "rubyFrameCount");
+
+					const auto stop = high_resolution_clock::now();
+					const auto duration = duration_cast<milliseconds>(stop - start);
+					LOG_MSG("SDL: Compiling shader took %lld ms", duration.count());
 				}
 			}
 		}

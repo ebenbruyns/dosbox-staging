@@ -19,6 +19,7 @@
 #include "dosbox.h"
 
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -46,6 +47,8 @@
 #include "video.h"
 
 #include "render_scalers.h"
+
+using namespace std::chrono;
 
 Render_t render;
 ScalerLineHandler_t RENDER_DrawLine;
@@ -863,7 +866,14 @@ void RENDER_Init(Section* sec)
 
 #if C_OPENGL
 	const auto previous_shader_filename = render.shader.filename;
+
+	const auto start = high_resolution_clock::now();
+
 	RENDER_InitShaderSource(section);
+
+	const auto stop = high_resolution_clock::now();
+	const auto duration = duration_cast<milliseconds>(stop - start);
+	LOG_MSG("RENDER: Loading shader took %lld ms", duration.count());
 #endif
 
 	setup_scan_and_pixel_doubling(section);
