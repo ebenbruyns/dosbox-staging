@@ -4468,10 +4468,10 @@ void OverrideWMClass()
 }
 
 extern "C" int SDL_CDROMInit(void);
-int sdl_main(int argc, char *argv[])
+int sdl_main(int argc, char* argv[])
 {
-	CommandLine com_line(argc, argv);
-	control = std::make_unique<Config>(&com_line);
+	control = SETUP_CreateConfig(argc, argv);
+
 	const auto arguments = &control->arguments;
 
 	if (arguments->version) {
@@ -4499,7 +4499,7 @@ int sdl_main(int argc, char *argv[])
 		loguru::g_stderr_verbosity = loguru::Verbosity_WARNING;
 	}
 
-	loguru::init(argc, argv);
+	loguru::init(argc, const_cast<char**>(argv));
 
 	LOG_MSG("%s version %s", CANONICAL_PROJECT_NAME, DOSBOX_GetDetailedVersion());
 	LOG_MSG("---");
@@ -4679,7 +4679,7 @@ int sdl_main(int argc, char *argv[])
 		}
 
 		control->StartUp(); // Run the machine until shutdown
-		control.reset();  // Shutdown and release
+
 	} catch (char* error) {
 		rcode = 1;
 		GFX_ShowMsg("Exit to error: %s",error);
