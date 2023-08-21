@@ -2047,9 +2047,11 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 		double_width = is_pixel_doubling && vga.draw.pixel_doubling_enabled;
 
 		// No need to actually render double-scanned for VGA modes other
-		// than 13h(and its tweak-mode variants; we'll just fake it with
+		// than 13h (and its tweak-mode variants; we'll just fake it with
 		// `double_height`.
 		if (is_vga_scan_doubling()) {
+			video_mode.is_double_scanned_mode = true;
+
 			vga.draw.address_line_total /= 2;
 			video_mode.height = vert_end / 2;
 			double_height     = vga.draw.double_scanning_enabled;
@@ -2092,6 +2094,8 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 
 		const auto is_double_scanning =
 		        (vga.crtc.maximum_scan_line.maximum_scan_line > 0);
+
+		video_mode.is_double_scanned_mode = is_double_scanning;
 
 		render_pixel_aspect_ratio = calc_pixel_aspect_from_timings(vga_timings);
 
@@ -2194,7 +2198,9 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 			// double-scan" (render single-scanned, then double the
 			// image vertically with a scaler).
 			if (is_vga_scan_doubling()) {
+				video_mode.is_double_scanned_mode = true;
 				video_mode.height = vert_end / 2;
+
 				if (vga.draw.double_scanning_enabled) {
 					render_height = video_mode.height * 2;
 				} else {
@@ -2376,6 +2382,8 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 		               vga.draw.pixel_doubling_enabled;
 
 		if (IS_VGA_ARCH) {
+			video_mode.is_double_scanned_mode = true;
+
 			video_mode.height = vert_end / 2;
 			render_height     = video_mode.height;
 
@@ -2681,6 +2689,7 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 	        vga_timings.horiz.total,
 	        vga_timings.vert.total);
 #endif
+
 #if 0
 	LOG_MSG("VGA: RENDER: width: %d, height: %d, dblw: %d, dblh: %d, PAR: %lld:%lld (1:%g)",
 	        render_width,
