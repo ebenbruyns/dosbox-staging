@@ -146,7 +146,7 @@ static void start_line_handler(const void* s)
 	if (s) {
 		auto src   = static_cast<const uintptr_t*>(s);
 		auto cache = reinterpret_cast<uintptr_t*>(render.scale.cacheRead);
-		for (Bits x = render.src.start; x > 0;) {
+		for (Bits x = render.src_start; x > 0;) {
 			const auto src_ptr = reinterpret_cast<const uint8_t*>(src);
 			const auto src_val = read_unaligned_size_t(src_ptr);
 			if (GCC_UNLIKELY(src_val != cache[0])) {
@@ -177,7 +177,7 @@ static void finish_line_handler(const void* s)
 	if (s) {
 		auto src   = static_cast<const uintptr_t*>(s);
 		auto cache = reinterpret_cast<uintptr_t*>(render.scale.cacheRead);
-		for (Bits x = render.src.start; x > 0;) {
+		for (Bits x = render.src_start; x > 0;) {
 			cache[0] = src[0];
 			x--;
 			src++;
@@ -298,9 +298,9 @@ void RENDER_EndUpdate(bool abort)
 		image.image_data         = (uint8_t*)&scalerSourceCache;
 		image.palette_data       = (uint8_t*)&render.pal.rgb;
 
-		auto video_mode = render.video_mode;
+		auto video_mode = render.src.video_mode;
 
-		const auto frames_per_second = static_cast<float>(render.src.fps);
+		const auto frames_per_second = static_cast<float>(render.fps);
 
 		CAPTURE_AddFrame(image, video_mode, frames_per_second);
 	}
@@ -395,19 +395,19 @@ static void render_reset(void)
 
 	switch (render.src.pixel_format) {
 	case PixelFormat::Indexed8:
-		render.src.start = (render.src.width * 1) / sizeof(Bitu);
+		render.src_start = (render.src.width * 1) / sizeof(Bitu);
 		break;
 	case PixelFormat::BGR555:
 	case PixelFormat::BGR565:
-		render.src.start = (render.src.width * 2) / sizeof(Bitu);
+		render.src_start = (render.src.width * 2) / sizeof(Bitu);
 		gfx_flags        = (gfx_flags & ~GFX_CAN_8);
 		break;
 	case PixelFormat::BGR888:
-		render.src.start = (render.src.width * 3) / sizeof(Bitu);
+		render.src_start = (render.src.width * 3) / sizeof(Bitu);
 		gfx_flags        = (gfx_flags & ~GFX_CAN_8);
 		break;
 	case PixelFormat::BGRX8888:
-		render.src.start = (render.src.width * 4) / sizeof(Bitu);
+		render.src_start = (render.src.width * 4) / sizeof(Bitu);
 		gfx_flags        = (gfx_flags & ~GFX_CAN_8);
 		break;
 	}
@@ -440,7 +440,7 @@ static void render_reset(void)
 	                        height,
 	                        render_pixel_aspect_ratio,
 	                        gfx_flags,
-	                        render.video_mode,
+	                        render.src.video_mode,
 	                        &render_callback);
 
 	if (gfx_flags & GFX_CAN_8) {
@@ -546,9 +546,9 @@ void RENDER_SetSize(const uint16_t width, const uint16_t height,
 	render.src.double_height      = double_height;
 	render.src.pixel_aspect_ratio = render_pixel_aspect_ratio;
 	render.src.pixel_format       = pixel_format;
-	render.src.fps                = frames_per_second;
+	render.src.video_mode         = video_mode;
 
-	render.video_mode = video_mode;
+	render.fps = frames_per_second;
 
 	render_reset();
 }
