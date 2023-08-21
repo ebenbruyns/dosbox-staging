@@ -2277,7 +2277,8 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 
 		video_mode.is_graphics_mode  = true;
 		video_mode.graphics_standard = cga_pcjr_or_tga();
-		video_mode.color_depth       = ColorDepth::IndexedColor4;
+		video_mode.color_depth       = mono_cga ? ColorDepth::Monochrome
+		                                        : ColorDepth::IndexedColor4;
 
 		vga.draw.blocks = horiz_end * 2;
 
@@ -2327,7 +2328,8 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 
 		video_mode.is_graphics_mode  = true;
 		video_mode.graphics_standard = cga_pcjr_or_tga();
-		video_mode.color_depth       = ColorDepth::IndexedColor2;
+		video_mode.color_depth       = mono_cga ? ColorDepth::Monochrome
+		                                        : ColorDepth::IndexedColor2;
 
 		if (machine == MCH_PCJR) {
 			vga.draw.blocks = horiz_end * (vga.tandy.mode_control.is_pcjr_640x200_2_color_graphics
@@ -2369,9 +2371,14 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 
 		video_mode.is_graphics_mode  = true;
 		video_mode.graphics_standard = GraphicsStandard::Cga;
-		video_mode.color_depth       = (vga.mode == M_CGA2)
-		                                     ? ColorDepth::IndexedColor2
-		                                     : ColorDepth::IndexedColor4;
+
+		if (mono_cga) {
+			video_mode.color_depth = ColorDepth::Monochrome;
+		} else {
+			video_mode.color_depth = (vga.mode == M_CGA2)
+			                               ? ColorDepth::IndexedColor2
+			                               : ColorDepth::IndexedColor4;
+		}
 
 		vga.draw.blocks = horiz_end * 2;
 
@@ -2571,7 +2578,8 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 		// CGA, Tandy & PCjr text modes
 		video_mode.is_graphics_mode  = false;
 		video_mode.graphics_standard = cga_pcjr_or_tga();
-		video_mode.color_depth       = ColorDepth::IndexedColor16;
+		video_mode.color_depth       = mono_cga ? ColorDepth::Monochrome
+		                                        : ColorDepth::IndexedColor16;
 
 		vga.draw.blocks = horiz_end;
 
