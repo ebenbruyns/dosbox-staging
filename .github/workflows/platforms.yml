@@ -1,49 +1,15 @@
 name: Platform builds
 
-on:
-  schedule: [cron: '0 14 * * *']
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+on: push
 
 jobs:
-  repo-check:
-    name: Repository commit check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          submodules: false
-
-      - id: commit-check
-        run: echo "has-commits=$(./scripts/has-commits-since.sh '24 hours ago')"  >> $GITHUB_OUTPUT
-    outputs:
-      has-commits: ${{ steps.commit-check.outputs.has-commits }}
-
   build_on_platform:
     name: ${{ matrix.name }}
-    # The host should always be linux
-    runs-on: ubuntu-20.04
-    needs: repo-check
-    if: needs.repo-check.outputs.has-commits == 'true'
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
-          - name: ARMv6 (Raspbian)
-            arch: armv6
-            distro: bullseye
-          - name: ARMv7 (Debian “bullseye”)
-            arch: armv7
-            distro: bullseye
-          - name: ARM64 (Ubuntu 20.04)
-            arch: aarch64
-            distro: ubuntu20.04
-          - name: s390x (Fedora)
-            arch: s390x
-            distro: fedora_latest
           - name: ppc64le (Fedora)
             arch: ppc64le
             distro: fedora_latest
@@ -89,7 +55,7 @@ jobs:
                                     < /dev/null > /dev/null
                 apt-get -qq install cmake g++ build-essential ccache libasound2-dev libgtest-dev \
                                     libopusfile-dev libsdl2-dev python3-setuptools python3-pip zlib1g-dev \
-                                    libspeexdsp-dev \
+                                    libspeexdsp-dev libpng-dev \
                                     < /dev/null > /dev/null
                 pip3 install meson ninja
                 ;;
