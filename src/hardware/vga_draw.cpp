@@ -2786,12 +2786,8 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 
 	static VideoMode previous_video_mode = {};
 
-	if ((previous_video_mode != render.video_mode) ||
-	    (vga.draw.render.width != render.width) || (vga.draw.render.height != render.height) ||
-	    (vga.draw.render.double_width != render.double_width) ||
-	    (vga.draw.render.double_height != render.double_height) ||
-	    (vga.draw.render.pixel_aspect_ratio != render.pixel_aspect_ratio) ||
-	    (vga.draw.render.pixel_format != render.pixel_format) || fps_changed) {
+	if (previous_video_mode != render.video_mode ||
+	    vga.draw.render != render || fps_changed) {
 		VGA_KillDrawing();
 
 		const auto canvas = GFX_GetCanvasSize();
@@ -2804,6 +2800,8 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 			render = setup_drawing();
 		}
 
+		vga.draw.render = render;
+
 		if (render.width > SCALER_MAXWIDTH ||
 		    render.height > SCALER_MAXHEIGHT) {
 			LOG_ERR("VGA: The calculated video resolution %ux%u will be "
@@ -2812,20 +2810,16 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 			        render.height,
 			        SCALER_MAXWIDTH,
 			        SCALER_MAXHEIGHT);
+
+			vga.draw.render.width  = std::min(render.width,
+                                                         static_cast<uint16_t>(
+                                                                 SCALER_MAXWIDTH));
+			vga.draw.render.height = std::min(render.height,
+			                                  static_cast<uint16_t>(
+			                                          SCALER_MAXHEIGHT));
 		}
 
-		vga.draw.render.width  = std::min(render.width,
-                                          static_cast<uint16_t>(SCALER_MAXWIDTH));
-		vga.draw.render.height = std::min(render.height,
-		                           static_cast<uint16_t>(SCALER_MAXHEIGHT));
-
-		vga.draw.render.double_width        = render.double_width;
-		vga.draw.render.double_height       = render.double_height;
-		vga.draw.render.pixel_aspect_ratio = render.pixel_aspect_ratio;
-		vga.draw.render.pixel_format       = render.pixel_format;
-		vga.draw.render.video_mode         = render.video_mode;
-
-		vga.draw.lines_scaled       = render.double_height ? 2 : 1;
+		vga.draw.lines_scaled = render.double_height ? 2 : 1;
 
 		if (!vga.draw.vga_override) {
 			ReelMagic_RENDER_SetSize(render.width,

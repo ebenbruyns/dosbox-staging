@@ -196,6 +196,21 @@ struct RenderParams {
 	//   - height = 200
 	//   - pixel_aspect_ratio = 5/6 (1:1.2)
 	VideoMode video_mode = {};
+
+	constexpr bool operator==(const RenderParams& that) const
+	{
+		return (width != that.width || height != that.height ||
+		        double_width != that.double_width ||
+		        double_height != that.double_height ||
+		        pixel_aspect_ratio != that.pixel_aspect_ratio ||
+		        pixel_format != that.pixel_format ||
+		        video_mode != that.video_mode);
+	}
+
+	constexpr bool operator!=(const RenderParams& that) const
+	{
+		return !operator==(that);
+	}
 };
 
 
