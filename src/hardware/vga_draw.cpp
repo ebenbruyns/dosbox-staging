@@ -36,6 +36,7 @@
 #include "render.h"
 #include "vga.h"
 #include "video.h"
+#include "../ints/int10.h"
 
 //#undef C_DEBUG
 //#define C_DEBUG 1

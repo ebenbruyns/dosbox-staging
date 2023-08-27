@@ -501,12 +501,16 @@ std::string ShaderManager::FindShaderAutoGraphicsStandard() const
 
 	switch (video_mode.graphics_standard) {
 	case GraphicsStandard::Hercules: return GetHerculesShader();
+	case GraphicsStandard::Pcjr: return GetCgaShader();
+	case GraphicsStandard::Tga: return GetEgaShader();
 
 	case GraphicsStandard::Cga:
-	case GraphicsStandard::Pcjr: return GetCgaShader();
-
-	case GraphicsStandard::Tga:
-	case GraphicsStandard::Ega: return GetEgaShader();
+	case GraphicsStandard::Ega:
+		if (video_mode.is_cga_or_ega_mode_with_vga_palette) {
+			return GetVgaShader();
+		} else {
+			return GetEgaShader();
+		}
 
 	case GraphicsStandard::Vga:
 	case GraphicsStandard::Svga:

@@ -630,6 +630,10 @@ bool RENDER_MaybeAutoSwitchShader([[maybe_unused]] const uint16_t canvas_width,
 #endif // C_OPENGL
 }
 
+void RENDER_NotifyCgaOrEgaModeWithVgaPalette() {
+//	is_cga_or_ega_mode_with_vga_palette
+}
+
 #if C_OPENGL
 
 bool RENDER_UseSrgbTexture()

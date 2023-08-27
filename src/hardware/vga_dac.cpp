@@ -26,6 +26,7 @@
 #include "render.h"
 #include "rgb.h"
 #include "vga.h"
+#include "../ints/int10.h"
 
 /*
 3C6h (R/W):  PEL Mask
@@ -59,6 +60,27 @@ enum {DAC_READ,DAC_WRITE};
 static void VGA_DAC_SendColor(uint8_t index, uint8_t src)
 {
 	const auto& src_rgb666 = vga.dac.rgb[src];
+
+	const auto default_cga_color = cga_colors_default[index];
+
+	if (!INT10_IsTextMode(*CurMode)) {
+		if ((index <= 5 || index == 7) &&
+		    (src_rgb666.red != default_cga_color.red ||
+		     src_rgb666.green != default_cga_color.green ||
+		     src_rgb666.blue != default_cga_color.blue)) {
+			RENDER_NotifyCgaOrEgaModeWithVgaPalette();
+
+			LOG_WARNING("*** set color: index %02d, %02x%02x%02x",
+						index,
+						src_rgb666.red,
+						src_rgb666.green,
+						src_rgb666.blue);
+			LOG_WARNING("*** default: %02x%02x%02x",
+						default_cga_color.red,
+						default_cga_color.green,
+						default_cga_color.blue);
+		}
+	}
 
 	const auto r8 = rgb6_to_8_lut(src_rgb666.red);
 	const auto g8 = rgb6_to_8_lut(src_rgb666.green);
