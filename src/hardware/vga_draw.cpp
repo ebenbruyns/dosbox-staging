@@ -2746,6 +2746,8 @@ RenderParams setup_drawing()
 
 void VGA_SetupDrawing(uint32_t /*val*/)
 {
+	LOG_WARNING("VGA_SetupDrawing");
+
 	if (vga.mode == M_ERROR) {
 		PIC_RemoveEvents(VGA_VerticalTimer);
 		PIC_RemoveEvents(VGA_PanningLatch);
