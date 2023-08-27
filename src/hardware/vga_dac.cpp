@@ -61,27 +61,6 @@ static void VGA_DAC_SendColor(uint8_t index, uint8_t src)
 {
 	const auto& src_rgb666 = vga.dac.rgb[src];
 
-	const auto default_cga_color = cga_colors_default[index];
-
-	if (!INT10_IsTextMode(*CurMode)) {
-		if ((index <= 5 || index == 7) &&
-		    (src_rgb666.red != default_cga_color.red ||
-		     src_rgb666.green != default_cga_color.green ||
-		     src_rgb666.blue != default_cga_color.blue)) {
-			RENDER_NotifyCgaOrEgaModeWithVgaPalette();
-
-			LOG_WARNING("*** set color: index %02d, %02x%02x%02x",
-						index,
-						src_rgb666.red,
-						src_rgb666.green,
-						src_rgb666.blue);
-			LOG_WARNING("*** default: %02x%02x%02x",
-						default_cga_color.red,
-						default_cga_color.green,
-						default_cga_color.blue);
-		}
-	}
-
 	const auto r8 = rgb6_to_8_lut(src_rgb666.red);
 	const auto g8 = rgb6_to_8_lut(src_rgb666.green);
 	const auto b8 = rgb6_to_8_lut(src_rgb666.blue);
@@ -91,6 +70,25 @@ static void VGA_DAC_SendColor(uint8_t index, uint8_t src)
 	                                                   (g8 << 8) | b8);
 
 	ReelMagic_RENDER_SetPalette(index, r8, g8, b8);
+
+	const auto cga_or_ega_mode_on_vga = (machine == MCH_VGA &&
+	                                     (vga.mode == M_CGA2 || vga.mode == M_CGA4 ||
+	                                      vga.mode == M_EGA));
+
+	if (cga_or_ega_mode_on_vga && index < 6) {
+		const auto cga_color = cga_colors_default[index];
+
+		const auto non_ega_palette = (src_rgb666.red != cga_color.red ||
+			                      src_rgb666.green != cga_color.green ||
+			                      src_rgb666.blue != cga_color.blue);
+
+		LOG_ERR("idx: %d, col: %02x%02x%02x, cga_col: %02x%02x%02x, non_ega: %d", index, src_rgb666.red, src_rgb666.green, src_rgb666.blue, cga_color.red, cga_color.green, cga_color.blue, non_ega_palette);
+
+		if (!vga.non_ega_palette && non_ega_palette) {
+			vga.non_ega_palette = true;
+			RENDER_NotifyCgaOrEgaModeWithVgaPalette();
+		}
+	}
 }
 
 static void VGA_DAC_UpdateColor(uint16_t index)

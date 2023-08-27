@@ -76,6 +76,7 @@ void ShaderManager::NotifyRenderParametersChanged(const uint16_t canvas_width,
                                                   const uint16_t canvas_height,
                                                   const VideoMode& video_mode)
 {
+	LOG_WARNING(">>> NotifyRenderParametersChanged");
 	// We need to calculate the scale factors for two eventualities: 1)
 	// potentially double-scanned, and 2) forced single-scanned output. Then
 	// we need to pick the best outcome based on shader availability for the
@@ -506,9 +507,13 @@ std::string ShaderManager::FindShaderAutoGraphicsStandard() const
 
 	case GraphicsStandard::Cga:
 	case GraphicsStandard::Ega:
+
+		LOG_WARNING(">>> GraphicsStandard::Ega");
 		if (video_mode.is_cga_or_ega_mode_with_vga_palette) {
+			LOG_WARNING(">>> VGA");
 			return GetVgaShader();
 		} else {
+			LOG_WARNING(">>> EGA");
 			return GetEgaShader();
 		}
 

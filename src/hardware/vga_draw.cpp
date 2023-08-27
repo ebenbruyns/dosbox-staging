@@ -1924,8 +1924,6 @@ RenderParams setup_drawing()
 	const auto horiz_end = updated_timings.horiz_display_end;
 	const auto vert_end  = updated_timings.vert_display_end;
 
-	VideoMode video_mode = {};
-
 	// Calculate render dimensions and source & render pixel aspect ratios
 	uint32_t render_width  = 0;
 	uint32_t render_height = 0;
@@ -1972,8 +1970,9 @@ RenderParams setup_drawing()
 	        static_cast<uint8_t>(vga.crtc.maximum_scan_line.maximum_scan_line));
 #endif
 
-	const auto bios_mode_number = CurMode->mode;
+	VideoMode video_mode = {};
 
+	const auto bios_mode_number = CurMode->mode;
 	video_mode.bios_mode_number = bios_mode_number;
 
 	auto pcjr_or_tga = [=]() {
@@ -2216,6 +2215,10 @@ RenderParams setup_drawing()
 				render_pixel_aspect_ratio *= 2;
 			}
 
+			LOG_ERR("----- 111 vga.non_ega_palette: %d", vga.non_ega_palette);
+			video_mode.is_cga_or_ega_mode_with_vga_palette =
+					vga.non_ega_palette;
+
 		} else { // M_EGA
 			video_mode.height = vert_end;
 			render_height     = video_mode.height;
@@ -2404,6 +2407,9 @@ RenderParams setup_drawing()
 			    !vga.draw.pixel_doubling_enabled) {
 				render_pixel_aspect_ratio *= 2;
 			}
+
+			video_mode.is_cga_or_ega_mode_with_vga_palette =
+					vga.non_ega_palette;
 
 		} else { // M_EGA
 			video_mode.height = vert_end;
@@ -2747,7 +2753,7 @@ RenderParams setup_drawing()
 
 void VGA_SetupDrawing(uint32_t /*val*/)
 {
-	LOG_WARNING("VGA_SetupDrawing");
+	LOG_WARNING("]]]]] VGA_SetupDrawing ENTER");
 
 	if (vga.mode == M_ERROR) {
 		PIC_RemoveEvents(VGA_VerticalTimer);
@@ -2826,7 +2832,10 @@ void VGA_SetupDrawing(uint32_t /*val*/)
 		}
 
 		previous_video_mode = render.video_mode;
+		vga.non_ega_palette = false;
 	}
+
+	LOG_WARNING("]]]]] VGA_SetupDrawing EXIT");
 }
 
 void VGA_KillDrawing(void) {

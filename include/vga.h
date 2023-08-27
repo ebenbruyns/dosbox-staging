@@ -902,6 +902,8 @@ struct VGA_Type {
 	// Composite video mode parameters
 	int ri = 0, rq = 0, gi = 0, gq = 0, bi = 0, bq = 0;
 	int sharpness = 0;
+
+	bool non_ega_palette = false;
 };
 
 // Hercules & CGA monochrome palette
@@ -933,9 +935,11 @@ void VGA_SetupDrawing(uint32_t val);
 void VGA_CheckScanLength(void);
 void VGA_ChangedBank(void);
 
-/* Some DAC/Attribute functions */
-void VGA_DAC_CombineColor(uint8_t attr,uint8_t pal);
-void VGA_DAC_SetEntry(Bitu entry,uint8_t red,uint8_t green,uint8_t blue);
+// DAC/Attribute functions
+void VGA_DAC_CombineColor(uint8_t attr, uint8_t pal);
+void VGA_DAC_SetEntry(Bitu entry, uint8_t red, uint8_t green, uint8_t blue);
+bool VGA_DAC_IsCgaOrEgaPaletteAltered();
+
 void VGA_ATTR_SetPalette(uint8_t index,uint8_t val);
 
 enum EGAMonitorMode { CGA, EGA, MONO };

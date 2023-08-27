@@ -115,7 +115,8 @@ struct VideoMode {
 		        pixel_aspect_ratio == that.pixel_aspect_ratio &&
 		        graphics_standard == that.graphics_standard &&
 		        color_depth == that.color_depth &&
-		        is_double_scanned_mode == that.is_double_scanned_mode);
+		        is_double_scanned_mode == that.is_double_scanned_mode &&
+				is_cga_or_ega_mode_with_vga_palette == that.is_cga_or_ega_mode_with_vga_palette );
 	}
 
 	constexpr bool operator!=(const VideoMode& that) const

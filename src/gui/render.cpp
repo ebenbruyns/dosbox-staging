@@ -630,8 +630,24 @@ bool RENDER_MaybeAutoSwitchShader([[maybe_unused]] const uint16_t canvas_width,
 #endif // C_OPENGL
 }
 
-void RENDER_NotifyCgaOrEgaModeWithVgaPalette() {
-//	is_cga_or_ega_mode_with_vga_palette
+void RENDER_NotifyCgaOrEgaModeWithVgaPalette()
+{
+	LOG_ERR("####### RENDER_NotifyCgaOrEgaModeWithVgaPalette");
+
+	const auto canvas = GFX_GetCanvasSize();
+	auto video_mode   = vga.draw.render.video_mode;
+
+	LOG_ERR("   non_ega_palette:       %d", vga.non_ega_palette);
+	LOG_ERR("   video_mode.is_vga_pal: %d",
+	        video_mode.is_cga_or_ega_mode_with_vga_palette);
+
+	if (!video_mode.is_cga_or_ega_mode_with_vga_palette) {
+		LOG_ERR(">>>> REINIT <<<<<<");
+		video_mode.is_cga_or_ega_mode_with_vga_palette = true;
+
+		constexpr auto reinit_render = true;
+		RENDER_MaybeAutoSwitchShader(canvas.w, canvas.h, video_mode, reinit_render);
+	}
 }
 
 #if C_OPENGL
