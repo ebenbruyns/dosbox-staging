@@ -924,6 +924,8 @@ void VGA_DetermineMode(void);
 void VGA_SetupHandlers(void);
 const char* to_string(const VGAModes mode);
 
+VideoMode VGA_GetCurrentVideoMode();
+
 void VGA_StartResize();
 void VGA_StartResizeAfter(const uint16_t delay_ms);
 
