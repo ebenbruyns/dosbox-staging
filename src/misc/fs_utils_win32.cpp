@@ -23,10 +23,13 @@
 #if defined(WIN32)
 
 #include <direct.h>
+#include <fcntl.h>
 #include <io.h>
 #include <sys/stat.h>
 
 #include "compiler.h"
+#include "dos_inc.h"
+#include "dos_system.h"
 
 bool path_exists(const char *path) noexcept
 {
@@ -52,6 +55,65 @@ int create_dir(const std_fs::path& path, [[maybe_unused]] uint32_t mode,
 			return 0;
 	}
 	return err;
+}
+
+// ***************************************************************************
+// Local drive file/directory attribute handling
+// ***************************************************************************
+
+constexpr uint8_t win32_attributes_mask = 0x3f;
+
+FILE* local_drive_create_file(const std_fs::path& path,
+                              const FatAttributeFlags attributes)
+{
+	FILE* file_pointer = nullptr;
+	const auto win32_attributes = (attributes._data != 0) ? static_cast<DWORD>(attributes._data)
+	                                                      : FILE_ATTRIBUTE_NORMAL;
+	const auto win32_handle = CreateFile(path.c_str(),
+	                                     GENERIC_READ | GENERIC_WRITE,
+	                                     0,
+	                                     nullptr,
+	                                     CREATE_ALWAYS,
+	                                     win32_attributes,
+	                                     nullptr);
+
+	if (win32_handle != INVALID_HANDLE_VALUE) {
+		const int file_descriptor = _open_osfhandle(
+		        static_cast<intptr_t>(win32_handle), _O_RDWR | _O_BINARY);
+		file_pointer = _fdopen(file_descriptor, "wb+");
+	}
+
+	return file_pointer;
+}
+
+uint16_t local_drive_create_dir(const std_fs::path& path)
+{
+	const auto result = create_dir(path.c_str(), 0775);
+
+	return (result == 0) ? DOSERR_NONE : DOSERR_ACCESS_DENIED;
+}
+
+uint16_t local_drive_get_attributes(const std_fs::path& path,
+                                    FatAttributeFlags& attributes)
+{
+	const auto win32_attributes = GetFileAttributes(path.c_str());
+	if (win32_attributes == INVALID_FILE_ATTRIBUTES) {
+		attributes = 0;
+		return static_cast<uint16_t>(GetLastError());
+	}
+
+	attributes = win32_attributes & win32_attributes_mask;
+	return DOSERR_NONE;
+}
+
+uint16_t local_drive_set_attributes(const std_fs::path& path,
+                                    const FatAttributeFlags attributes)
+{
+	if (!SetFileAttributes(path.c_str(), attributes._data)) {
+		return static_cast<uint16_t>(GetLastError());
+	}
+
+	return DOSERR_NONE;
 }
 
 #endif

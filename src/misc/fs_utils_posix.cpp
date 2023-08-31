@@ -22,14 +22,18 @@
 
 #if !defined(WIN32)
 
-#include <cerrno>
 #include <cctype>
+#include <cerrno>
+#include <fcntl.h>
 #include <glob.h>
+#include <optional>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/xattr.h>
 #include <unistd.h>
 
 #include "cross.h"
+#include "dos_inc.h"
 #include "logging.h"
 #include "string_utils.h"
 
@@ -146,5 +150,190 @@ std::deque<std_fs::path> get_xdg_data_dirs() noexcept
 }
 
 #endif
+
+// ***************************************************************************
+// Local drive file/directory attribute handling, WINE-compatible
+// ***************************************************************************
+
+constexpr int ro_permissions = S_IRUSR | S_IRGRP | S_IROTH;
+constexpr int rw_permissions = S_IWUSR | S_IWGRP | S_IWOTH | ro_permissions;
+
+// Attributes 'hidden', 'system', and 'archive' are always taken from the
+// host extended attributes.
+constexpr uint8_t xattr_read_mask = 0b0010'0110; // hidden, system, archive
+// Attributes 'read-only' and 'directory' are stored in extended attributes,
+// but not used by DOSBox, for these we are always using host file system
+// attribute bits.
+constexpr uint8_t xattr_write_mask = 0b0001'0001 | xattr_read_mask;
+
+static const std::string xattr_name = "user.DOSATTRIB";
+
+constexpr size_t xattr_min_length = 3;
+constexpr size_t xattr_max_length = 4;
+
+static std::string fat_attribs_to_xattr(const FatAttributeFlags fat_attribs)
+{
+	return format_string("0x%x", fat_attribs._data & xattr_write_mask);
+}
+
+static std::optional<FatAttributeFlags> xattr_to_fat_attribs(const std::string& xattr)
+{
+	constexpr uint8_t hex_base = 16;
+
+	if (xattr.size() <= xattr_max_length && starts_with(xattr, "0x") &&
+	    xattr.size() >= xattr_min_length) {
+		const auto value = to_int(xattr.substr(2), hex_base);
+		if (value) {
+			return *value & xattr_read_mask;
+		}
+	}
+
+	return {};
+}
+
+static std::optional<FatAttributeFlags> get_xattr(const std_fs::path& path)
+{
+	char xattr[xattr_max_length + 1];
+
+#ifdef MACOSX
+	constexpr int offset  = 0;
+	constexpr int options = 0;
+
+	const auto length = getxattr(path.c_str(),
+	                             xattr_name.c_str(),
+	                             xattr,
+	                             xattr_max_length,
+	                             offset,
+	                             options);
+#else
+	const auto length = getxattr(path.c_str(), xattr_name.c_str(), xattr, xattr_max_length);
+#endif
+	if (length <= 0) {
+		return {};
+	}
+
+	assert(static_cast<size_t>(length) < xattr_max_length);
+	xattr[length] = 0;
+
+	return xattr_to_fat_attribs(std::string(xattr));
+}
+
+static bool set_xattr(const std_fs::path& path, const FatAttributeFlags attributes)
+{
+	const auto xattr = fat_attribs_to_xattr(attributes);
+
+#ifdef MACOSX
+	constexpr int offset  = 0;
+	constexpr int options = 0;
+
+	const auto result = setxattr(path.c_str(),
+	                             xattr_name.c_str(),
+	                             xattr.c_str(),
+	                             xattr.size(),
+	                             offset,
+	                             options);
+#else
+	constexpr int flags = 0;
+
+	const auto result   = setxattr(path.c_str(),
+                                     xattr_name.c_str(),
+                                     xattr.c_str(),
+                                     xattr.size(),
+                                     flags);
+#endif
+	return (result == 0);
+}
+
+static bool set_xattr(const int file_descriptor, const FatAttributeFlags attributes)
+{
+	const auto xattr = fat_attribs_to_xattr(attributes);
+
+#ifdef MACOSX
+	constexpr int offset  = 0;
+	constexpr int options = 0;
+
+	const auto result = fsetxattr(file_descriptor,
+	                              xattr_name.c_str(),
+	                              xattr.c_str(),
+	                              xattr.size(),
+	                              offset,
+	                              options);
+#else
+	constexpr int flags = 0;
+
+	const auto result = fsetxattr(file_descriptor,
+	                              xattr_name.c_str(),
+	                              xattr.c_str(),
+	                              xattr.size(),
+	                              flags);
+#endif
+	return (result == 0);
+}
+
+FILE* local_drive_create_file(const std_fs::path& path,
+                              const FatAttributeFlags attributes)
+{
+	FILE* file_pointer         = nullptr;
+	const auto file_descriptor = open(path.c_str(),
+	                                  O_CREAT | O_RDWR | O_TRUNC,
+	                                  rw_permissions);
+	if (file_descriptor != -1) {
+		set_xattr(file_descriptor, attributes);
+		file_pointer = fdopen(file_descriptor, "wb+");
+	}
+
+	return file_pointer;
+}
+
+uint16_t local_drive_create_dir(const std_fs::path& path)
+{
+	const auto result = create_dir(path.c_str(), 0775);
+	// XXX consider doing set_xattr / or join with win32 version
+
+	return (result == 0) ? DOSERR_NONE : DOSERR_ACCESS_DENIED;
+}
+
+uint16_t local_drive_get_attributes(const std_fs::path& path,
+                                    FatAttributeFlags& attributes)
+{
+	struct stat status;
+	if (stat(path.c_str(), &status) != 0) {
+		attributes = 0;
+		return DOSERR_FILE_NOT_FOUND;
+	}
+	const bool is_directory = status.st_mode & S_IFDIR;
+	const bool is_read_only = !(status.st_mode & S_IWUSR);
+
+	const auto result = get_xattr(path);
+	if (result) {
+		attributes = *result;
+	} else {
+		attributes         = 0;
+		attributes.archive = !is_directory;
+	}
+
+	attributes.directory = is_directory;
+	attributes.read_only = is_read_only;
+
+	return DOSERR_NONE;
+}
+
+uint16_t local_drive_set_attributes(const std_fs::path& path,
+                                    const FatAttributeFlags attributes)
+{
+	if (!path_exists(path)) {
+		return DOSERR_FILE_NOT_FOUND;
+	}
+
+	bool status = make_writable(path);
+	if (status) {
+		status = set_xattr(path, attributes);
+		if (status && attributes.read_only) {
+			status = make_readonly(path);
+		}
+	}
+
+	return status ? DOSERR_NONE : DOSERR_ACCESS_DENIED;
+}
 
 #endif
