@@ -656,7 +656,7 @@ void MIXER_SetMasterVolume(const AudioFrame& volume)
 	mixer.master_volume = volume;
 }
 
-static void MIXER_UpdateAllChannelVolumes()
+void MIXER_UpdateAllChannelVolumes()
 {
 	MIXER_LockAudioDevice();
 
