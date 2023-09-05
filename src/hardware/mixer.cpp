@@ -180,7 +180,8 @@ struct mixer_t {
 	std::vector<float> resample_temp = {};
 	std::vector<float> resample_out  = {};
 
-	AudioFrame master_volume                        = {1.0f, 1.0f};
+	AudioFrame master_volume = {1.0f, 1.0f};
+
 	std::map<std::string, mixer_channel_t> channels = {};
 
 	// Counters accessed by multiple threads
@@ -643,6 +644,16 @@ const AudioFrame& MixerChannel::GetUserVolume() const
 const AudioFrame& MixerChannel::GetAppVolume() const
 {
 	return app_volume_scalar;
+}
+
+const AudioFrame& MIXER_GetMasterVolume()
+{
+	return mixer.master_volume;
+}
+
+void MIXER_SetMasterVolume(const AudioFrame& volume)
+{
+	mixer.master_volume = volume;
 }
 
 static void MIXER_UpdateAllChannelVolumes()
