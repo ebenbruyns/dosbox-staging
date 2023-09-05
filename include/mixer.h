@@ -139,6 +139,14 @@ enum class ResampleMethod {
 	Resample
 };
 
+enum class ReverbPreset { None, Tiny, Small, Medium, Large, Huge };
+
+constexpr auto DefaultReverbPreset = ReverbPreset::Medium;
+
+enum class ChorusPreset { None, Light, Normal, Strong };
+
+constexpr auto DefaultChorusPreset = ChorusPreset::Normal;
+
 // forward declarations
 struct SpeexResamplerState_;
 typedef SpeexResamplerState_ SpeexResamplerState;
