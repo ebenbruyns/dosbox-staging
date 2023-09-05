@@ -27,8 +27,10 @@
 #include <array>
 #include <atomic>
 #include <functional>
+#include <map>
 #include <memory>
 #include <set>
+#include <string>
 
 #include "../src/hardware/compressor.h"
 #include "audio_frame.h"
@@ -413,6 +415,8 @@ mixer_channel_t MIXER_AddChannel(MIXER_Handler handler, const int freq,
                                  const std::set<ChannelFeature>& features);
 
 mixer_channel_t MIXER_FindChannel(const char* name);
+std::map<std::string, mixer_channel_t>& MIXER_GetChannels();
+
 void MIXER_DeregisterChannel(const std::string& name);
 void MIXER_DeregisterChannel(mixer_channel_t& channel);
 
