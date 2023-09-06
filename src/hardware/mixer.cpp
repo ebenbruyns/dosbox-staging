@@ -24,25 +24,11 @@
 #include "mixer.h"
 
 #include <algorithm>
-#include <array>
-#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <map>
 #include <optional>
-#include <set>
 #include <sys/types.h>
-
-// TODO remove?
-#if defined(WIN32)
-// Midi listing
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <mmsystem.h>
-#include <windows.h>
-#endif
 
 #include <SDL.h>
 #include <speex/speex_resampler.h>
@@ -55,7 +41,6 @@
 #include "math_utils.h"
 #include "mem.h"
 #include "midi.h"
-#include "mixer.h"
 #include "pic.h"
 #include "setup.h"
 #include "string_utils.h"
