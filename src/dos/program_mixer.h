@@ -23,6 +23,61 @@
 
 #include "programs.h"
 
+#include <memory>
+#include <optional>
+#include <queue>
+#include <string>
+#include <variant>
+#include <vector>
+
+#include "audio_frame.h"
+#include "mixer.h"
+
+constexpr auto MasterMixerChannelName = "MASTER";
+
+struct SelectChannel {
+	std::string channel_name = {};
+};
+
+struct SetVolume {
+	AudioFrame volume = {};
+};
+
+struct SetStereoMode {
+	StereoLine mode = {};
+};
+
+struct SetCrossfeedStrength {
+	float strength = {};
+};
+
+struct SetReverbLevel {
+	float level = {};
+};
+
+struct SetChorusLevel {
+	float level = {};
+};
+
+using MixerCommand = std::variant<SelectChannel, SetVolume, SetStereoMode,
+                                  SetCrossfeedStrength, SetReverbLevel, SetChorusLevel>;
+
+struct MixerCommandExecutor {
+	void operator()(const SelectChannel& cmd);
+	void operator()(const SetVolume& cmd);
+	void operator()(const SetStereoMode& cmd);
+	void operator()(const SetCrossfeedStrength& cmd);
+	void operator()(const SetReverbLevel& cmd);
+	void operator()(const SetChorusLevel& cmd);
+
+private:
+	// 'master_channel' is true if the MASTER channel is selected,
+	// otherwise 'channel' points to the current non-master channel.
+	bool master_channel = false;
+
+	std::shared_ptr<MixerChannel> channel = {};
+};
+
 class MIXER final : public Program {
 public:
 	MIXER()
@@ -39,6 +94,11 @@ private:
 	void ShowMixerStatus();
 
 	static void AddMessages();
+
+	std::queue<MixerCommand> ParseCommands(const std::vector<std::string>& args);
+
+	void ExecuteCommands(MixerCommandExecutor& executor,
+	                     std::queue<MixerCommand> commands);
 };
 
 #endif

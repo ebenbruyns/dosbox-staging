@@ -93,12 +93,19 @@ constexpr T Mixer_GetSilentDOSSample()
 }
 
 // A simple enum to describe the array index associated with a given audio line
-enum LineIndex : uint8_t {
+enum LineIndex {
 	Left  = 0,
 	Right = 1,
 	// DOS games didn't support surround sound, but if surround sound
 	// becomes standard at the host-level, then additional line indexes
 	// would go here.
+};
+
+struct StereoLine {
+	LineIndex left  = Left;
+	LineIndex right = Right;
+
+	bool operator==(const StereoLine other) const;
 };
 
 enum class ChannelFeature {
@@ -235,8 +242,6 @@ private:
 	MixerChannel()                    = delete;
 	MixerChannel(const MixerChannel&) = delete;
 
-	MixerChannel& operator=(const MixerChannel&) = delete;
-
 	template <class Type, bool stereo, bool signeddata, bool nativeorder>
 	AudioFrame ConvertNextFrame(const Type* data, const work_index_t pos);
 
@@ -307,12 +312,6 @@ private:
 	// peak, like the PCSpeaker, should update it with: SetPeakAmplitude()
 	//
 	int peak_amplitude = Max16BitSampleValue;
-
-	struct StereoLine {
-		LineIndex left  = Left;
-		LineIndex right = Right;
-		bool operator==(const StereoLine other) const;
-	};
 
 	static constexpr StereoLine Stereo  = {Left, Right};
 	static constexpr StereoLine Reverse = {Right, Left};

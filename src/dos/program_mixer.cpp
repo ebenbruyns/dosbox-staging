@@ -20,29 +20,86 @@
 
 #include "program_mixer.h"
 
-#include <optional>
-#include <string>
-#include <vector>
-
 #include "ansi_code_markup.h"
 #include "audio_frame.h"
 #include "checks.h"
 #include "math_utils.h"
 #include "midi.h"
-#include "mixer.h"
 #include "string_utils.h"
 
 CHECK_NARROWING();
 
-using channels_set_t = std::set<mixer_channel_t>;
-
-static channels_set_t set_of_channels()
+void MixerCommandExecutor::operator()(const SelectChannel& cmd)
 {
-	channels_set_t channels = {};
-	for (const auto& it : MIXER_GetChannels()) {
-		channels.emplace(it.second);
+	if (cmd.channel_name == MasterMixerChannelName) {
+		master_channel = true;
+		channel        = nullptr;
+	} else {
+		master_channel = false;
+		channel        = MIXER_FindChannel(cmd.channel_name.c_str());
+		assert(channel);
 	}
-	return channels;
+}
+
+void MixerCommandExecutor::operator()(const SetVolume& cmd)
+{
+	if (master_channel) {
+		MIXER_SetMasterVolume(cmd.volume);
+	} else {
+		channel->SetUserVolume(cmd.volume.left, cmd.volume.right);
+	}
+}
+
+void MixerCommandExecutor::operator()(const SetStereoMode& cmd)
+{
+	if (master_channel) {
+		// TODO
+	} else {
+		// TODO
+	}
+}
+
+void MixerCommandExecutor::operator()(const SetCrossfeedStrength& cmd)
+{
+	if (master_channel) {
+		for (const auto& [_, channel] : MIXER_GetChannels()) {
+			channel->SetCrossfeedStrength(cmd.strength);
+		}
+	} else {
+		channel->SetCrossfeedStrength(cmd.strength);
+	}
+}
+
+void MixerCommandExecutor::operator()(const SetReverbLevel& cmd)
+{
+	// Enable reverb if it's disabled
+	if (MIXER_GetReverbPreset() == ReverbPreset::None) {
+		MIXER_SetReverbPreset(DefaultReverbPreset);
+	}
+
+	if (master_channel) {
+		for (const auto& [_, channel] : MIXER_GetChannels()) {
+			channel->SetReverbLevel(cmd.level);
+		}
+	} else {
+		channel->SetReverbLevel(cmd.level);
+	}
+}
+
+void MixerCommandExecutor::operator()(const SetChorusLevel& cmd)
+{
+	// Enable chorus if it's disabled
+	if (MIXER_GetChorusPreset() == ChorusPreset::None) {
+		MIXER_SetChorusPreset(DefaultChorusPreset);
+	}
+
+	if (master_channel) {
+		for (const auto& [_, channel] : MIXER_GetChannels()) {
+			channel->SetChorusLevel(cmd.level);
+		}
+	} else {
+		channel->SetChorusLevel(cmd.level);
+	}
 }
 
 // Parse the volume in string form, either in stereo or mono format,
@@ -90,6 +147,159 @@ static std::optional<AudioFrame> parse_volume(const std::string& s)
 	return {};
 }
 
+std::queue<MixerCommand> MIXER::ParseCommands(const std::vector<std::string>& args)
+{
+	mixer_channel_t channel    = {};
+	bool is_master             = false;
+	auto channel_command_count = 0;
+
+	// Argument parse states
+	enum { Global, Master, SelectChannel, Channel };
+	auto state = Global;
+
+	constexpr auto crossfeed_command = 'X';
+	constexpr auto reverb_command    = 'R';
+	constexpr auto chorus_command    = 'C';
+
+	std::queue<MixerCommand> commands = {};
+
+	auto parse_channel_name = [&](const std::string& arg) -> bool {
+		bool found = false;
+		if (arg == MasterMixerChannelName) {
+			found     = true;
+			channel   = nullptr;
+			is_master = true;
+		} else {
+			if (auto chan = MIXER_FindChannel(arg.c_str()); chan) {
+				found     = true;
+				channel   = chan;
+				is_master = false;
+			}
+		}
+		if (found) {
+			state = is_master ? Master : Channel;
+
+			channel_command_count = 0;
+			return true;
+		}
+		return false;
+	};
+
+	for (const auto& argument : args) {
+		auto arg = argument;
+		upcase(arg);
+
+		switch (state) {
+		case Global: {
+			if (parse_channel_name(arg)) {
+				state = is_master ? Master : Channel;
+				continue;
+			}
+
+			// Global commands apply to all non-master channels
+			if (auto p = parse_prefixed_percentage(crossfeed_command, arg);
+			    p) {
+				for (auto& it : MIXER_GetChannels()) {
+					const auto strength = percentage_to_gain(*p);
+					it.second->SetCrossfeedStrength(strength);
+				}
+
+			} else if (p = parse_prefixed_percentage(reverb_command, arg);
+			           p) {
+				const auto level = percentage_to_gain(*p);
+				//				set_reverb_level(level,
+				// set_of_channels());
+
+			} else if (p = parse_prefixed_percentage(chorus_command, arg);
+			           p) {
+				const auto level = percentage_to_gain(*p);
+				//				set_chorus_level(level,
+				// set_of_channels());
+
+			} else {
+				// WriteOut("%s%s",
+				// MSG_Get("SHELL_CMD_MIXER_CHANNEL_NOT_FOUND"),
+				// arg.c_str());
+				WriteOut("Invalid channel name or global command: %s",
+				         arg.c_str());
+				break;
+			}
+		} break;
+
+		case Master: {
+			// Only setting the volume is allowed for the
+			// master channel
+			if (const auto v = parse_volume(arg); v) {
+				MIXER_SetMasterVolume(*v);
+				// Only a select channel command is allowed
+				// after this
+				state = SelectChannel;
+			} else {
+				WriteOut("Invalid master command: %s", arg.c_str());
+				break;
+			}
+		} break;
+
+		case SelectChannel: {
+			if (parse_channel_name(arg)) {
+				state = is_master ? Master : Channel;
+				continue;
+			} else {
+				WriteOut("Invalid channel name: %s", arg.c_str());
+				break;
+			}
+		}
+
+		case Channel: {
+			// Adjust settings of a regular non-master channel
+			if (auto p = parse_prefixed_percentage(crossfeed_command, arg);
+			    p) {
+				const auto strength = percentage_to_gain(*p);
+				channel->SetCrossfeedStrength(strength);
+
+			} else if (p = parse_prefixed_percentage(reverb_command, arg);
+			           p) {
+				const auto level = percentage_to_gain(*p);
+				//				set_reverb_level(level,
+				//{channel});
+
+			} else if (p = parse_prefixed_percentage(chorus_command, arg);
+			           p) {
+				const auto level = percentage_to_gain(*p);
+				//				set_chorus_level(level,
+				//{channel});
+
+			} else if (channel->ChangeLineoutMap(arg)) {
+				// nop
+			} else if (const auto v = parse_volume(arg); v) {
+				channel->SetUserVolume(v->left, v->right);
+			}
+
+			if (channel_command_count > 0) {
+				if (parse_channel_name(arg)) {
+					state = is_master ? Master : Channel;
+					continue;
+				}
+			}
+
+			WriteOut("Invalid channel command: %s", arg.c_str());
+			break;
+		} break;
+		}
+	}
+
+	return commands;
+}
+
+void MIXER::ExecuteCommands(MixerCommandExecutor& executor,
+                            std::queue<MixerCommand> commands)
+{
+	while (!commands.empty()) {
+		std::visit(executor, commands.front());
+		commands.pop();
+	}
+}
+
 void MIXER::Run()
 {
 	if (HelpRequested()) {
@@ -102,144 +312,17 @@ void MIXER::Run()
 		return;
 	}
 
-	auto showStatus = !cmd->FindExist("/NOSHOW", true);
+	constexpr auto remove = false;
+	auto showStatus       = !cmd->FindExist("/NOSHOW", remove);
 
-	std::vector<std::string> args = {};
-	cmd->FillVector(args);
-
-	auto set_reverb_level = [&](const float level,
-	                            const channels_set_t& selected_channels) {
-		const auto should_zero_other_channels = (MIXER_GetReverbPreset() ==
-		                                         ReverbPreset::None);
-
-		// Do we need to start the reverb engine?
-		if (MIXER_GetReverbPreset() == ReverbPreset::None) {
-			MIXER_SetReverbPreset(DefaultReverbPreset);
-		}
-
-		for ([[maybe_unused]] const auto& [_, channel] :
-		     MIXER_GetChannels()) {
-			if (selected_channels.find(channel) !=
-			    selected_channels.end()) {
-				channel->SetReverbLevel(level);
-			} else if (should_zero_other_channels) {
-				channel->SetReverbLevel(0);
-			}
-		}
-	};
-
-	auto set_chorus_level = [&](const float level,
-	                            const channels_set_t& selected_channels) {
-		const auto should_zero_other_channels = (MIXER_GetChorusPreset() ==
-		                                         ChorusPreset::None);
-
-		// Do we need to start the chorus engine?
-		if (MIXER_GetChorusPreset() == ChorusPreset::None) {
-			MIXER_SetChorusPreset(DefaultChorusPreset);
-		}
-
-		for ([[maybe_unused]] const auto& [_, channel] :
-		     MIXER_GetChannels()) {
-			if (selected_channels.find(channel) !=
-			    selected_channels.end()) {
-				channel->SetChorusLevel(level);
-			} else if (should_zero_other_channels) {
-				channel->SetChorusLevel(0);
-			}
-		}
-	};
-
-	auto is_master = false;
-
-	mixer_channel_t channel = {};
+	const auto args = cmd->GetArguments();
 
 	MIXER_LockAudioDevice();
 
-	for (auto& arg : args) {
-		// Does this argument set the target channel of
-		// subsequent commands?
-		upcase(arg);
+	MixerCommandExecutor executor = {};
 
-		if (arg == "MASTER") {
-			channel   = nullptr;
-			is_master = true;
-			continue;
-		} else {
-			auto chan = MIXER_FindChannel(arg.c_str());
-			if (chan) {
-				channel   = chan;
-				is_master = false;
-				continue;
-			}
-		}
-
-		const auto global_command = !is_master && !channel;
-
-		constexpr auto crossfeed_command = 'X';
-		constexpr auto reverb_command    = 'R';
-		constexpr auto chorus_command    = 'C';
-
-		if (global_command) {
-			// Global commands apply to all non-master channels
-			if (auto p = parse_prefixed_percentage(crossfeed_command, arg);
-			    p) {
-				for (auto& it : MIXER_GetChannels()) {
-					const auto strength = percentage_to_gain(*p);
-					it.second->SetCrossfeedStrength(strength);
-				}
-				continue;
-
-			} else if (p = parse_prefixed_percentage(reverb_command, arg);
-			           p) {
-				const auto level = percentage_to_gain(*p);
-				set_reverb_level(level, set_of_channels());
-				continue;
-
-			} else if (p = parse_prefixed_percentage(chorus_command, arg);
-			           p) {
-				const auto level = percentage_to_gain(*p);
-				set_chorus_level(level, set_of_channels());
-				continue;
-			}
-
-		} else if (is_master) {
-			// Only setting the volume is allowed for the
-			// master channel
-			if (const auto v = parse_volume(arg); v) {
-				MIXER_SetMasterVolume(*v);
-			}
-
-		} else if (channel) {
-			// Adjust settings of a regular non-master channel
-			if (auto p = parse_prefixed_percentage(crossfeed_command, arg);
-			    p) {
-				const auto strength = percentage_to_gain(*p);
-				channel->SetCrossfeedStrength(strength);
-				continue;
-
-			} else if (p = parse_prefixed_percentage(reverb_command, arg);
-			           p) {
-				const auto level = percentage_to_gain(*p);
-				set_reverb_level(level, {channel});
-				continue;
-
-			} else if (p = parse_prefixed_percentage(chorus_command, arg);
-			           p) {
-				const auto level = percentage_to_gain(*p);
-				set_chorus_level(level, {channel});
-
-				continue;
-			}
-
-			if (channel->ChangeLineoutMap(arg)) {
-				continue;
-			}
-
-			if (const auto v = parse_volume(arg); v) {
-				channel->SetUserVolume(v->left, v->right);
-			}
-		}
-	}
+	auto commands = ParseCommands(args);
+	ExecuteCommands(executor, commands);
 
 	MIXER_UnlockAudioDevice();
 
@@ -285,12 +368,10 @@ void MIXER::AddMessages()
 	        "[color=white]Channel      Volume    Volume (dB)   Mode     Xfeed  Reverb  Chorus[reset]");
 
 	MSG_Add("SHELL_CMD_MIXER_CHANNEL_OFF", "off");
-
 	MSG_Add("SHELL_CMD_MIXER_CHANNEL_STEREO", "Stereo");
-
 	MSG_Add("SHELL_CMD_MIXER_CHANNEL_REVERSE", "Reverse");
-
 	MSG_Add("SHELL_CMD_MIXER_CHANNEL_MONO", "Mono");
+	MSG_Add("SHELL_CMD_MIXER_CHANNEL_NOT_FOUND", "Channel not found: ");
 }
 
 void MIXER::ShowMixerStatus()
