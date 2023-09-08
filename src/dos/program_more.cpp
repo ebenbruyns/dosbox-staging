@@ -108,11 +108,10 @@ bool MORE::ParseCommandLine(MoreOutputFiles &output)
 
 bool MORE::FindInputFiles(MoreOutputFiles &output)
 {
-	// Put all the remaining parameters into vector
-	std::vector<std::string> params;
-	cmd->FillVector(params);
-	if (params.empty())
+	const auto params = cmd->GetArguments();
+	if (params.empty()) {
 		return true;
+	}
 
 	constexpr auto search_attr = UINT16_MAX & ~DOS_ATTR_DIRECTORY & ~DOS_ATTR_VOLUME;
 
