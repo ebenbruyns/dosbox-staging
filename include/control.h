@@ -83,13 +83,15 @@ public:
 	std::vector<std::string> configfiles = {};
 	std::vector<std_fs::path> configFilesCanonical = {};
 
-	Config(CommandLine *cmd)
+	Config(CommandLine* cmd)
 	        : cmdline(cmd),
 	          overwritten_autoexec_section("overwritten-autoexec")
 	{
 		assert(cmdline);
-		startup_params.push_back(cmdline->GetFileName());
-		cmdline->FillVector(startup_params);
+		startup_params = cmdline->GetArguments();
+		startup_params.insert(startup_params.begin(),
+		                      cmdline->GetFileName());
+
 		ParseArguments();
 	}
 
