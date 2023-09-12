@@ -176,7 +176,6 @@ public:
 	void SetChannelMap(const StereoLine map);
 	void SetLineoutMap(const StereoLine map);
 	std::string DescribeLineout() const;
-	void ReactivateEnvelope();
 	void SetSampleRate(const uint16_t _freq);
 	void SetPeakAmplitude(const int peak);
 	void Mix(const uint16_t frames_requested);
@@ -231,8 +230,6 @@ public:
 
 	// Pass-through to the sleeper
 	bool WakeUp();
-
-	void FlushSamples();
 
 	// Timing on how many sample frames have been done by the mixer
 	std::atomic<int> frames_done = 0;
