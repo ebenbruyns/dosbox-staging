@@ -93,7 +93,7 @@ constexpr T Mixer_GetSilentDOSSample()
 }
 
 // A simple enum to describe the array index associated with a given audio line
-enum LineIndex : uint8_t {
+enum LineIndex {
 	Left  = 0,
 	Right = 1,
 	// DOS games didn't support surround sound, but if surround sound
@@ -240,8 +240,6 @@ private:
 	// prevent default construction, copying, and assignment
 	MixerChannel()                    = delete;
 	MixerChannel(const MixerChannel&) = delete;
-
-	MixerChannel& operator=(const MixerChannel&) = delete;
 
 	template <class Type, bool stereo, bool signeddata, bool nativeorder>
 	AudioFrame ConvertNextFrame(const Type* data, const work_index_t pos);
@@ -419,8 +417,6 @@ void MIXER_SetMasterVolume(const AudioFrame volume);
 
 void MIXER_Mute();
 void MIXER_Unmute();
-
-void MIXER_UpdateAllChannelVolumes();
 
 void MIXER_LockAudioDevice();
 void MIXER_UnlockAudioDevice();
