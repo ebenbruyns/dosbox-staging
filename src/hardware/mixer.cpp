@@ -714,17 +714,10 @@ const AudioFrame MIXER_GetMasterVolume()
 void MIXER_SetMasterVolume(const AudioFrame volume)
 {
 	mixer.master_volume = volume;
-}
-
-void MIXER_UpdateAllChannelVolumes()
-{
-	MIXER_LockAudioDevice();
 
 	for (auto& it : mixer.channels) {
 		it.second->RecalcCombinedVolume();
 	}
-
-	MIXER_UnlockAudioDevice();
 }
 
 void MixerChannel::SetChannelMap(const StereoLine map)
