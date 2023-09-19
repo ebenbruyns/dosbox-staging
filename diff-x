@@ -1,2 +1,0 @@
-#!/bin/bash
-diff -w $1 ~/daum/dosbox-x/$1 
