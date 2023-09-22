@@ -1457,6 +1457,74 @@ void POD_Save_DOS_Files( std::ostream& stream )
 		//**********************************************
 		//**********************************************
 
+		file_namelen = strlen( Files[lcv]->name ) + 1;
+		file_name = (char *) alloca( file_namelen );
+		strcpy( file_name, Files[lcv]->name );
+
+		file_drive = Files[lcv]->GetDrive();
+		file_flags = Files[lcv]->flags;
+
+
+		// - Drives->FileOpen vars (repeat copy)
+		WRITE_POD( &file_namelen, file_namelen );
+		WRITE_POD_SIZE( file_name, file_namelen );
+
+		WRITE_POD( &file_drive, file_drive );
+		WRITE_POD( &file_flags, file_flags );
+
+
+		Files[lcv]->SaveState(stream);
+	}
+}
+
+void POD_Load_DOS_Files( std::istream& stream )
+{
+	// 1. Do drives first (directories -> files)
+	// 2. Then files next
+
+	for( int lcv=0; lcv<DOS_DRIVES; lcv++ ) {
+		Bit8u drive_valid;
+
+
+		// - reloc ptr
+		READ_POD( &drive_valid, drive_valid );
+		if( drive_valid == 0xff ) continue;
+
+
+		if( Drives[lcv] ) Drives[lcv]->LoadState(stream);
+	}
+
+
+	for( int lcv=0; lcv<DOS_FILES; lcv++ ) {
+		Bit8u file_valid;
+		char *file_name;
+		Bit8u file_namelen, file_drive, file_flags;
+
+
+		// - reloc ptr
+		READ_POD( &file_valid, file_valid );
+
+
+		// ignore system files
+		if( file_valid == 0xfe ) {
+			READ_POD( &Files[lcv]->refCtr, Files[lcv]->refCtr );
+			continue;
+		}
+
+
+		// shutdown old file
+		if( Files[lcv] ) {
+			if( Files[lcv]->IsOpen() ) Files[lcv]->Close();
+			if (Files[lcv]->RemoveRef()<=0) {
+				delete Files[lcv];
+			}
+			Files[lcv]=0;
+		}
+
+
+		// ignore NULL file
+		if( file_valid == 0xff ) continue;
+
 		//**********************************************
 		//**********************************************
 		//**********************************************

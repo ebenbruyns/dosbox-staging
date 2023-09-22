@@ -953,10 +953,12 @@ private:
 					// - reloc new ptr (leave alone)
 					//stream.write(reinterpret_cast<const char*>(&ticker_ptr->next), sizeof(ticker_ptr->next) );
 
+					ticker_ptr = ticker_ptr->next;
+				}
 
 
-        //stream.write(reinterpret_cast<const char*>(&PIC_benchstart), sizeof(PIC_benchstart) );
 				// - system (leave alone)
+        //stream.write(reinterpret_cast<const char*>(&PIC_benchstart), sizeof(PIC_benchstart) );
         //stream.write(reinterpret_cast<const char*>(&PIC_tickstart), sizeof(PIC_tickstart) );
 
 				// - static (leave alone)
