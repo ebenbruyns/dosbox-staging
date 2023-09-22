@@ -148,11 +148,11 @@ CNullModem::CNullModem(Bitu id, CommandLine* cmd):CSerial (id, cmd) {
 	setCTS(dtrrespect||transparent);
 	setDSR(dtrrespect||transparent);
 	setRI(false);
+
+	if (serversocket) delete serversocket;
+CNullModem::~CNullModem() {
 	setCD(clientsocket != NULL); // CD on if connection established
 }
-
-CNullModem::~CNullModem() {
-	if (serversocket) delete serversocket;
 	if (clientsocket) delete clientsocket;
 	// remove events
 	for(Bit16u i = SERIAL_BASE_EVENT_COUNT+1;
