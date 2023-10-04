@@ -1,5 +1,5 @@
 dnl Init.
-AC_INIT(dosbox,SVN)
+AC_INIT(dosbox,ECE)
 AC_PREREQ(2.50)
 AC_CONFIG_SRCDIR(README)
 
@@ -490,6 +490,24 @@ else
    AC_MSG_RESULT(no)
 fi
 
+AH_TEMPLATE(C_FLUIDSYNTH,[Define to 1 to enable fluidsynth MIDI synthesis])
+AC_CHECK_LIB(fluidsynth, new_fluid_synth, have_fluidsynth_lib=yes, have_fluidsynth_lib=no, )
+AC_CHECK_HEADER(fluidsynth.h, have_fluidsynth_h=yes, have_fluidsynth_h=no, )
+AC_MSG_CHECKING(for FluidSynth support)
+if test x$have_fluidsynth_lib = xyes -a x$have_fluidsynth_h = xyes ; then
+  AC_DEFINE(C_FLUIDSYNTH,1)
+  LIBS="$LIBS -lfluidsynth"
+  AC_MSG_RESULT(yes)
+else
+  AC_MSG_WARN([fluidsynth MIDI synthesis not available])
+fi
+
+AH_TEMPLATE(C_WORDEXP,[Define to 1 if you have wordexp.h])
+AC_CHECK_HEADER(wordexp.h, have_wordexp_h=yes, have_wordexp_h=no, )
+if test x$have_wordexp_h = xyes ; then
+  AC_DEFINE(C_WORDEXP,1)
+fi
+
 AH_TEMPLATE(C_OPENGL,[Define to 1 to use opengl display output support])
 AC_CHECK_LIB(GL, main, have_gl_lib=yes, have_gl_lib=no , )
 AC_CHECK_LIB(opengl32, main, have_opengl32_lib=yes,have_opengl32_lib=no , )
@@ -541,22 +559,7 @@ case "$host" in
 esac
 fi
 
-AH_TEMPLATE(C_SDL_SOUND,[Define to 1 to enable SDL_sound support])
-AC_CHECK_HEADER(SDL_sound.h,have_SDL_sound_h=yes,)
-AC_CHECK_LIB(SDL_sound, Sound_Init, have_SDL_sound_init=yes,,)
-AC_CHECK_LIB(SDL_sound, Sound_Seek, have_SDL_sound_seek=yes,,)
-if test x$have_SDL_sound_h = xyes -a x$have_SDL_sound_init = xyes ; then
-  if test x$have_SDL_sound_seek = xyes ; then
-    LIBS="-lSDL_sound $LIBS"
-    AC_DEFINE(C_SDL_SOUND,1)
-   else 
-     AC_MSG_WARN([Can't find SoundSeek in libSDL_Sound, libSDL_sound support disabled])
-   fi
-else
-  AC_MSG_WARN([Can't find libSDL_sound, libSDL_sound support disabled])
-fi
-
-dnl Check for mprotect. Needed for 64 bits linux 
+dnl Check for mprotect. Needed for 64 bits linux
 AH_TEMPLATE(C_HAVE_MPROTECT,[Define to 1 if you have the mprotect function])
 AC_CHECK_HEADER([sys/mman.h], [
 AC_CHECK_FUNC([mprotect],[AC_DEFINE(C_HAVE_MPROTECT,1)])
@@ -579,7 +582,7 @@ int main(int argc,char * argv[]) {
 dnl Some target detection and actions for them
 case "$host" in
     *-*-cygwin* | *-*-mingw32*)
-       LIBS="$LIBS -lwinmm"
+       LIBS="$LIBS -lwinmm -lshlwapi"
        AC_DEFINE(C_DIRECTSERIAL, 1, [ Define to 1 if you want serial passthrough support (Win32, Posix and OS/2 only).])
        if test x$have_sdl_net_lib = xyes -a x$have_sdl_net_h = xyes ; then
          LIBS="$LIBS -lws2_32"
@@ -645,6 +648,7 @@ src/ints/Makefile
 src/libs/Makefile
 src/libs/zmbv/Makefile
 src/libs/gui_tk/Makefile
+src/libs/decoders/Makefile
 src/misc/Makefile
 src/shell/Makefile
 src/platform/Makefile
