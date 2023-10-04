@@ -32,6 +32,7 @@
 #include "dosbox.h"
 #include "video.h"
 #include "keyboard.h"
+#include "mouse.h"
 #include "joystick.h"
 #include "support.h"
 #include "mapper.h"
@@ -69,6 +70,8 @@ enum BC_Types {
 #define MAXACTIVE 16
 #define MAXBUTTON 32
 #define MAXBUTTON_CAP 16
+#define MAXAXIS 10
+#define MAXHAT 2
 
 class CEvent;
 class CHandlerEvent;
@@ -634,8 +637,8 @@ public:
 		if (_dummy) return;
 
 		// initialize binding lists and position data
-		pos_axis_lists=new CBindList[4];
-		neg_axis_lists=new CBindList[4];
+		pos_axis_lists=new CBindList[MAXAXIS];
+		neg_axis_lists=new CBindList[MAXAXIS];
 		button_lists=new CBindList[MAXBUTTON];
 		hat_lists=new CBindList[4];
 		Bitu i;
@@ -644,7 +647,7 @@ public:
 			old_button_state[i]=0;
 		}
 		for(i=0;i<16;i++) old_hat_state[i]=0;
-		for (i=0; i<4; i++) {
+		for (i=0; i<MAXAXIS; i++) {
 			old_pos_axis_state[i]=false;
 			old_neg_axis_state[i]=false;
 		}
@@ -662,8 +665,16 @@ public:
 		}
 
 		axes=SDL_JoystickNumAxes(sdl_joystick);
-		buttons=SDL_JoystickNumButtons(sdl_joystick);
+		if (axes > MAXAXIS) axes = MAXAXIS;
+		axes_cap=emulated_axes;
+		if (axes_cap>axes) axes_cap=axes;
+
 		hats=SDL_JoystickNumHats(sdl_joystick);
+		if (hats > MAXHAT) hats = MAXHAT;
+		hats_cap=emulated_hats;
+		if (hats_cap>hats) hats_cap=hats;
+
+		buttons=SDL_JoystickNumButtons(sdl_joystick);
 		button_wrap=buttons;
 		button_cap=buttons;
 		if (button_wrapping_enabled) {
@@ -671,10 +682,7 @@ public:
 			if (buttons>MAXBUTTON_CAP) button_cap = MAXBUTTON_CAP;
 		}
 		if (button_wrap > MAXBUTTON) button_wrap = MAXBUTTON;
-		axes_cap=emulated_axes;
-		if (axes_cap>axes) axes_cap=axes;
-		hats_cap=emulated_hats;
-		if (hats_cap>hats) hats_cap=hats;
+
 		LOG_MSG("Using joystick %s with %" sBitfs(d) " axes, %" sBitfs(d) " buttons and %" sBitfs(d) " hat%s",SDL_JoystickName(stick),axes,buttons,hats,(hats>1)?"s.":".");
 	}
 	~CStickBindGroup() {
@@ -707,7 +715,7 @@ public:
 		if (event->type==SDL_JOYAXISMOTION) {
 			if (event->jaxis.which!=stick) return 0;
 #if defined (REDUCE_JOYSTICK_POLLING)
-			if (event->jaxis.axis>=emulated_axes) return 0;
+			if (event->jaxis.axis>=axes) return 0;
 #endif
 			if (abs(event->jaxis.value)<25000) return 0;
 			return CreateAxisBind(event->jaxis.axis,event->jaxis.value>0);
@@ -799,7 +807,7 @@ public:
 			}
 		}
 
-		for (i=0; i<axes_cap; i++) {
+		for (i=0; i<axes; i++) {
 			Sint16 caxis_pos=SDL_JoystickGetAxis(sdl_joystick,i);
 			/* activate bindings for joystick position */
 			if (caxis_pos>1) {
@@ -831,7 +839,7 @@ public:
 			}
 		}
 
-		for (i=0; i<hats_cap; i++) {
+		for (i=0; i<hats; i++) {
 			Uint8 chat_state=SDL_JoystickGetHat(sdl_joystick,i);
 
 			/* activate binding if hat state has changed */
@@ -857,7 +865,7 @@ public:
 
 private:
 	CBind * CreateAxisBind(Bitu axis,bool positive) {
-		if (axis<emulated_axes) {
+		if (axis<axes) {
 			if (positive) return new CJAxisBind(&pos_axis_lists[axis],this,axis,positive);
 			else return new CJAxisBind(&neg_axis_lists[axis],this,axis,positive);
 		}
@@ -897,8 +905,8 @@ protected:
 	char configname[10];
 	Bitu button_autofire[MAXBUTTON];
 	bool old_button_state[MAXBUTTON];
-	bool old_pos_axis_state[16];
-	bool old_neg_axis_state[16];
+	bool old_pos_axis_state[MAXAXIS];
+	bool old_neg_axis_state[MAXAXIS];
 	Uint8 old_hat_state[16];
 	bool is_dummy;
 };
@@ -1498,6 +1506,20 @@ public:
 	KBD_KEYS key;
 };
 
+class CMouseButtonEvent : public CTriggeredEvent {
+public:
+	CMouseButtonEvent(char const * const _entry,Bit8u _button) : CTriggeredEvent(_entry) {
+		button=_button;
+	}
+	void Active(bool yesno) {
+		if (yesno)
+			Mouse_ButtonPressed(button);
+		else
+			Mouse_ButtonReleased(button);
+	}
+	Bit8u button;
+};
+	
 class CJAxisEvent : public CContinuousEvent {
 public:
 	CJAxisEvent(char const * const _entry,Bitu _stick,Bitu _axis,bool _positive,CJAxisEvent * _opposite_axis) : CContinuousEvent(_entry) {
@@ -1709,6 +1731,15 @@ static CKeyEvent * AddKeyButtonEvent(Bitu x,Bitu y,Bitu dx,Bitu dy,char const * 
 	return event;
 }
 
+static CMouseButtonEvent * AddMouseButtonEvent(Bitu x,Bitu y,Bitu dx,Bitu dy,char const * const title,char const * const entry,Bit8u button) {
+	char buf[64];
+	strcpy(buf,"mouse_");
+	strcat(buf,entry);
+	CMouseButtonEvent * event=new CMouseButtonEvent(buf,button);
+	new CEventButton(x,y,dx,dy,title,event);
+	return event;
+}
+
 static CJAxisEvent * AddJAxisButton(Bitu x,Bitu y,Bitu dx,Bitu dy,char const * const title,Bitu stick,Bitu axis,bool positive,CJAxisEvent * opposite_axis) {
 	char buf[64];
 	sprintf(buf,"jaxis_%" sBitfs(d) "_%" sBitfs(d) "%s",stick,axis,(positive ? "+" : "-"));
@@ -1865,6 +1896,15 @@ static void CreateLayout(void) {
 	AddKeyButtonEvent(PX(XO+3),PY(YO+3),BW,BH*2,"ENT","kp_enter",KBD_kpenter);
 	AddKeyButtonEvent(PX(XO),PY(YO+4),BW*2,BH,"0","kp_0",KBD_kp0);
 	AddKeyButtonEvent(PX(XO+2),PY(YO+4),BW,BH,".","kp_period",KBD_kpperiod);
+#undef XO
+#undef YO
+#define XO 5
+#define YO 8
+	/* Mouse Buttons */
+	new CTextButton(PX(XO+0),PY(YO-1),3*BW,20,"Mouse");
+	AddMouseButtonEvent(PX(XO+0),PY(YO),BW,BH,"L","left",0);
+	AddMouseButtonEvent(PX(XO+1),PY(YO),BW,BH,"M","middle",2);
+	AddMouseButtonEvent(PX(XO+2),PY(YO),BW,BH,"R","right",1);
 #undef XO
 #undef YO
 #define XO 10

@@ -50,6 +50,7 @@
 #include "cross.h"
 #include "control.h"
 #include "render.h"
+#include "glidedef.h"
 
 #define MAPPERFILE "mapper-" VERSION ".map"
 //#define DISABLE_JOYSTICK
@@ -467,9 +468,9 @@ void GFX_SetTitle(Bit32s cycles,int frameskip,bool paused){
 	if (cycles != -1) internal_cycles = cycles;
 	if (frameskip != -1) internal_frameskip = frameskip;
 	if(CPU_CycleAutoAdjust) {
-		sprintf(title,"DOSBox %s, CPU speed: max %3d%% cycles, Frameskip %2d, Program: %8s",VERSION,internal_cycles,internal_frameskip,RunningProgram);
+		sprintf(title,"DOSBox %s r4482, CPU speed: max %3d%% cycles, Frameskip %2d, Program: %8s",VERSION,internal_cycles,internal_frameskip,RunningProgram);
 	} else {
-		sprintf(title,"DOSBox %s, CPU speed: %8d cycles, Frameskip %2d, Program: %8s",VERSION,internal_cycles,internal_frameskip,RunningProgram);
+		sprintf(title,"DOSBox %s r4482, CPU speed: %8d cycles, Frameskip %2d, Program: %8s",VERSION,internal_cycles,internal_frameskip,RunningProgram);
 	}
 
 	if (paused) strcat(title," PAUSED");
@@ -620,6 +621,10 @@ check_gotbpp:
 
 
 void GFX_ResetScreen(void) {
+	if(glide.enabled) {
+		GLIDE_ResetScreen(true);
+		return;
+	}
 	GFX_Stop();
 	if (sdl.draw.callback)
 		(sdl.draw.callback)( GFX_CallBackReset );
@@ -1249,6 +1254,9 @@ void GFX_SwitchFullScreen(void) {
 		sticky_keys(true); //restore sticky keys to default state in windowed mode.
 #endif
 	}
+	if (glide.enabled)
+		GLIDE_ResetScreen();
+	else
 	GFX_ResetScreen();
 }
 
@@ -1898,7 +1906,7 @@ static void GUI_StartUp(Section * sec) {
 		SDL_FillRect(splash_surf, NULL, SDL_MapRGB(splash_surf->format, 0, 0, 0));
 
 		Bit8u* tmpbufp = new Bit8u[640*400*3];
-		GIMP_IMAGE_RUN_LENGTH_DECODE(tmpbufp,gimp_image.rle_pixel_data,640*400,3);
+		DOSBOX_SPLASH_RUN_LENGTH_DECODE(tmpbufp,dosbox_splash.rle_pixel_data,640*400,3);
 		for (Bitu y=0; y<400; y++) {
 
 			Bit8u* tmpbuf = tmpbufp + y*640*3;
@@ -2184,7 +2192,7 @@ void GFX_Events() {
 			throw(0);
 			break;
 		case SDL_VIDEOEXPOSE:
-			if (sdl.draw.callback) sdl.draw.callback( GFX_CallBackRedraw );
+			if ((sdl.draw.callback) && (!glide.enabled)) sdl.draw.callback( GFX_CallBackRedraw );
 			break;
 #ifdef WIN32
 		case SDL_KEYDOWN:
@@ -2669,6 +2677,8 @@ int main(int argc, char* argv[]) {
 			if (strcmp(sdl_drv_name,"windib")==0) LOG_MSG("SDL_Init: Starting up with SDL windib video driver.\n          Try to update your video card and directx drivers!");
 		}
 #endif
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+	glide.fullscreen = &sdl.desktop.fullscreen;
 	sdl.num_joysticks=SDL_NumJoysticks();
 
 	/* Parse configuration files */
@@ -2800,3 +2810,8 @@ void GFX_GetSize(int &width, int &height, bool &fullscreen) {
 	height = sdl.draw.height;
 	fullscreen = sdl.desktop.fullscreen;
 }
+
+bool OpenGL_using(void) {
+	return (sdl.desktop.want_type==SCREEN_OPENGL?true:false);
+}
+
